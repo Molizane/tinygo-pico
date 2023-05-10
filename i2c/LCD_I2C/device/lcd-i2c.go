@@ -19,42 +19,39 @@ const (
 	CMD_DDRAM_Set            = 0x80
 
 	// flags for display entry mode
-	FLG_Entry_Right           = 0x00
-	FLG_Entry_Left            = 0x02
-	FLG_Entry_Shift_Increment = 0x01
 	FLG_Entry_Shift_Decrement = 0x00
+	FLG_Entry_Shift_Increment = 0x01
+	FLG_Entry_Left            = 0x02
 
 	// flags for display on/off control
-	FLG_Blink_On    = 0x01
-	FLG_Blink_Off   = 0x00
-	FLG_Cursor_On   = 0x02
-	FLG_Cursor_Off  = 0x00
-	FLG_Display_On  = 0x04
-	FLG_Display_Off = 0x00
+	FLG_Blink_Off  = 0x00
+	FLG_Blink_On   = 0x01
+	FLG_Cursor_Off = 0x00
+	FLG_Cursor_On  = 0x02
+	FLG_Display_On = 0x04
 
 	// flags for display/cursor shift
-	FLG_Display_Move = 0x08
 	FLG_Cursor_Move  = 0x00
-	FLG_Move_Right   = 0x04
+	FLG_Display_Move = 0x08
 	FLG_Move_Left    = 0x00
+	FLG_Move_Right   = 0x04
 
 	// flags for function set
-	FLG_8Bit_Mode = 0x10
 	FLG_4Bit_Mode = 0x00
-	FLG_2_Lines   = 0x08
+	FLG_8Bit_Mode = 0x10
 	FLG_1_Line    = 0x00
-	FLG_5x10_Dots = 0x04
+	FLG_2_Lines   = 0x08
 	FLG_5x8_Dots  = 0x00
+	FLG_5x10_Dots = 0x04
 
 	// flags for Backlight control
-	FLG_Backlight   byte = 0x08
-	FLG_NoBacklight byte = 0x00
+	FLG_Backlight byte = 0x08
 )
 
 const (
-	PIN_EN byte = 0x04 // Enable bit
-	PIN_RW byte = 0x02 // Read/Write bit
 	PIN_RS byte = 0x01 // Register select bit
+	PIN_RW byte = 0x02 // Read/Write bit
+	PIN_EN byte = 0x04 // Enable bit
 )
 
 type lcdI2CType int
@@ -78,21 +75,30 @@ const (
 )
 
 type LcdI2C struct {
-	i2c        machine.I2C
-	addr       uint16
-	backlight  bool
-	lcdI2CType lcdI2CType
+	i2c            machine.I2C
+	addr           uint16
+	lcdI2CType     lcdI2CType
+	displaycontrol byte
+	displaymode    byte
+	backlightval   byte
 }
 
 func NewLcdI2C(i2c machine.I2C, addr uint16, lcdI2CType lcdI2CType) (*LcdI2C, error) {
-	this := &LcdI2C{i2c: i2c, addr: addr, backlight: true, lcdI2CType: lcdI2CType}
+	this := &LcdI2C{
+		i2c:            i2c,
+		addr:           addr,
+		lcdI2CType:     lcdI2CType,
+		displaycontrol: FLG_Display_On | FLG_Cursor_Off | FLG_Blink_Off,
+		displaymode:    FLG_Entry_Left | FLG_Entry_Shift_Decrement,
+		backlightval:   FLG_Backlight,
+	}
 
 	initByteSeq := []byte{
 		0x03, 0x03, 0x03, // base initialization
 		0x02, // setting up 4-bit transfer mode
 		CMD_Function_Set | FLG_2_Lines | FLG_5x8_Dots | FLG_4Bit_Mode,
-		CMD_Display_Control | FLG_Display_On,
-		CMD_Entry_Mode | FLG_Entry_Left,
+		CMD_Display_Control | this.displaycontrol,
+		CMD_Entry_Mode | this.displaymode,
 	}
 
 	for _, b := range initByteSeq {
@@ -140,9 +146,7 @@ func (this *LcdI2C) writeRawDataSeq(seq []rawData) error {
 }
 
 func (this *LcdI2C) writeDataWithStrobe(data byte) error {
-	if this.backlight {
-		data |= FLG_Backlight
-	}
+	data |= this.backlightval
 
 	seq := []rawData{
 		{data, 0},                               // send data
@@ -165,10 +169,12 @@ func (this *LcdI2C) writeByte(data byte, controlPins byte) error {
 
 func (this *LcdI2C) getLineRange(options ShowOptions) (startLine, endLine int) {
 	var lines [4]bool
+
 	lines[0] = options&SHOW_LINE_1 != 0
 	lines[1] = options&SHOW_LINE_2 != 0
 	lines[2] = options&SHOW_LINE_3 != 0
 	lines[3] = options&SHOW_LINE_4 != 0
+
 	startLine = -1
 
 	for i := 0; i < len(lines); i++ {
@@ -234,6 +240,10 @@ func (this *LcdI2C) splitText(text string, options ShowOptions) []string {
 	return lines
 }
 
+func (this *LcdI2C) command(cmd byte) error {
+	return this.writeByte(cmd, 0)
+}
+
 func (this *LcdI2C) ShowMessage(text string, options ShowOptions) error {
 	lines := this.splitText(text, options)
 	startLine, endLine := this.getLineRange(options)
@@ -291,12 +301,12 @@ func (this *LcdI2C) TestWriteCGRam() error {
 }
 
 func (this *LcdI2C) BacklightOn() error {
-	this.backlight = true
+	this.backlightval = FLG_Backlight
 	return this.writeByte(0x00, 0)
 }
 
 func (this *LcdI2C) BacklightOff() error {
-	this.backlight = false
+	this.backlightval = FLG_Backlight ^ 0xFF
 	return this.writeByte(0x00, 0)
 }
 
@@ -349,102 +359,52 @@ func (this *LcdI2C) Write(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
-func (this *LcdI2C) Command(cmd byte) error {
-	return this.writeByte(cmd, 0)
-}
-
 func (this *LcdI2C) DisplayOn() error {
-	command := []byte{
-		CMD_Display_Control | FLG_Display_On,
-	}
-
-	for _, b := range command {
-		err := this.writeByte(b, 0)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	this.displaycontrol |= FLG_Display_On
+	return this.command(CMD_Display_Control | this.displaycontrol)
 }
 
 func (this *LcdI2C) DisplayOff() error {
-	command := []byte{
-		CMD_Display_Control | FLG_Display_Off,
-	}
-
-	for _, b := range command {
-		err := this.writeByte(b, 0)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	this.displaycontrol &= FLG_Display_On ^ 0xFF
+	return this.command(CMD_Display_Control | this.displaycontrol)
 }
 
 func (this *LcdI2C) CursorOn() error {
-	command := []byte{
-		CMD_Display_Control | FLG_Cursor_On,
-	}
-
-	for _, b := range command {
-		err := this.writeByte(b, 0)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	this.displaycontrol |= FLG_Cursor_On
+	return this.command(CMD_Display_Control | this.displaycontrol)
 }
 
 func (this *LcdI2C) CursorOff() error {
-	command := []byte{
-		CMD_Display_Control | FLG_Cursor_Off,
-	}
-
-	for _, b := range command {
-		err := this.writeByte(b, 0)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	this.displaycontrol &= FLG_Cursor_On ^ 0xFF
+	return this.command(CMD_Display_Control | this.displaycontrol)
 }
 
 func (this *LcdI2C) BlinkOn() error {
-	command := []byte{
-		CMD_Display_Control | FLG_Blink_On,
-	}
-
-	for _, b := range command {
-		err := this.writeByte(b, 0)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	this.displaycontrol |= FLG_Display_On
+	return this.command(CMD_Display_Control | this.displaycontrol)
 }
 
 func (this *LcdI2C) BlinkOff() error {
-	command := []byte{
-		CMD_Display_Control | FLG_Blink_Off,
-	}
+	this.displaycontrol &= FLG_Display_On ^ 0xFF
+	return this.command(CMD_Display_Control | this.displaycontrol)
+}
 
-	for _, b := range command {
-		err := this.writeByte(b, 0)
+// These commands scroll the display without changing the RAM
+func (this *LcdI2C) ScrollDisplayLeft() {
+	this.command(CMD_Cursor_Display_Shift | CMD_Display_Control | FLG_Move_Left)
+}
+func (this *LcdI2C) ScrollDisplayRight() {
+	this.command(CMD_Cursor_Display_Shift | CMD_Display_Control | FLG_Move_Right)
+}
 
-		if err != nil {
-			return err
-		}
-	}
+// This is for text that flows Left to Right
+func (this *LcdI2C) LeftToRight() {
+	this.displaymode |= FLG_Entry_Left
+	this.command(CMD_Entry_Mode | this.displaymode)
+}
 
-	return nil
+// This is for text that flows Right to Left
+func (this *LcdI2C) RightToLeft() {
+	this.displaymode &= FLG_Entry_Left ^ 0xFF
+	this.command(CMD_Entry_Mode | this.displaymode)
 }
