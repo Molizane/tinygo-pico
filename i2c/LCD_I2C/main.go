@@ -20,7 +20,7 @@ func main() {
 	}
 
 	// Construct lcd-device connected via I2C connection
-	lcd, err := device.NewLcd(*i2c, 0x3F, device.LCD_16x2)
+	lcd, err := device.NewLcdI2C(*i2c, 0x3F, device.LCD_16x2)
 
 	if err != nil {
 		log.Fatal(err)
