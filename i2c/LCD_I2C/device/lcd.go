@@ -52,9 +52,9 @@ const (
 )
 
 const (
-	PIN_EN         byte = 0x04 // Enable bit
-	PIN_RW         byte = 0x02 // Read/Write bit
-	PIN_RS         byte = 0x01 // Register select bit
+	PIN_EN byte = 0x04 // Enable bit
+	PIN_RW byte = 0x02 // Read/Write bit
+	PIN_RS byte = 0x01 // Register select bit
 )
 
 type LcdType int
@@ -77,16 +77,16 @@ const (
 	SHOW_BLANK_PADDING
 )
 
-type Lcd struct {
-	i2c        machine.I2C
-	addr       uint16
+type LcdI2C struct {
+	i2c       machine.I2C
+	addr      uint16
 	BackLight bool
-	cursor     bool
-	lcdType    LcdType
+	cursor    bool
+	lcdType   LcdType
 }
 
-func NewLcd(i2c machine.I2C, addr uint16, lcdType LcdType) (*Lcd, error) {
-	this := &Lcd{i2c: i2c, addr: addr, BackLight: false, cursor: true, lcdType: lcdType}
+func NewLcdI2C(i2c machine.I2C, addr uint16, lcdType LcdType) (*LcdI2C, error) {
+	this := &LcdI2C{i2c: i2c, addr: addr, BackLight: false, cursor: true, lcdType: lcdType}
 
 	initByteSeq := []byte{
 		0x03, 0x03, 0x03, // base initialization
@@ -124,7 +124,7 @@ type rawData struct {
 	Delay time.Duration
 }
 
-func (this *Lcd) writeRawDataSeq(seq []rawData) error {
+func (this *LcdI2C) writeRawDataSeq(seq []rawData) error {
 	r := make([]byte, 1)
 
 	for _, item := range seq {
@@ -140,7 +140,7 @@ func (this *Lcd) writeRawDataSeq(seq []rawData) error {
 	return nil
 }
 
-func (this *Lcd) writeDataWithStrobe(data byte) error {
+func (this *LcdI2C) writeDataWithStrobe(data byte) error {
 	if this.BackLight {
 		data |= FLG_Back_Light
 	}
@@ -154,7 +154,7 @@ func (this *Lcd) writeDataWithStrobe(data byte) error {
 	return this.writeRawDataSeq(seq)
 }
 
-func (this *Lcd) writeByte(data byte, controlPins byte) error {
+func (this *LcdI2C) writeByte(data byte, controlPins byte) error {
 	err := this.writeDataWithStrobe(data&0xF0 | controlPins)
 
 	if err != nil {
@@ -170,7 +170,7 @@ func (this *Lcd) writeByte(data byte, controlPins byte) error {
 	return nil
 }
 
-func (this *Lcd) getLineRange(options ShowOptions) (startLine, endLine int) {
+func (this *LcdI2C) getLineRange(options ShowOptions) (startLine, endLine int) {
 	var lines [4]bool
 	lines[0] = options&SHOW_LINE_1 != 0
 	lines[1] = options&SHOW_LINE_2 != 0
@@ -197,7 +197,7 @@ func (this *Lcd) getLineRange(options ShowOptions) (startLine, endLine int) {
 	return startLine, endLine
 }
 
-func (this *Lcd) splitText(text string, options ShowOptions) []string {
+func (this *LcdI2C) splitText(text string, options ShowOptions) []string {
 	var lines []string
 	startLine, endLine := this.getLineRange(options)
 	w, _ := this.getSize()
@@ -241,7 +241,7 @@ func (this *Lcd) splitText(text string, options ShowOptions) []string {
 	return lines
 }
 
-func (this *Lcd) ShowMessage(text string, options ShowOptions) error {
+func (this *LcdI2C) ShowMessage(text string, options ShowOptions) error {
 	lines := this.splitText(text, options)
 	startLine, endLine := this.getLineRange(options)
 	i := 0
@@ -275,7 +275,7 @@ func (this *Lcd) ShowMessage(text string, options ShowOptions) error {
 	return nil
 }
 
-func (this *Lcd) TestWriteCGRam() error {
+func (this *LcdI2C) TestWriteCGRam() error {
 	err := this.writeByte(CMD_CGRAM_Set, 0)
 
 	if err != nil {
@@ -297,7 +297,7 @@ func (this *Lcd) TestWriteCGRam() error {
 	return nil
 }
 
-func (this *Lcd) BacklightOn() error {
+func (this *LcdI2C) BacklightOn() error {
 	this.BackLight = true
 	err := this.writeByte(0x00, 0)
 
@@ -308,7 +308,7 @@ func (this *Lcd) BacklightOn() error {
 	return nil
 }
 
-func (this *Lcd) BacklightOff() error {
+func (this *LcdI2C) BacklightOff() error {
 	this.BackLight = false
 	err := this.writeByte(0x00, 0)
 
@@ -319,18 +319,18 @@ func (this *Lcd) BacklightOff() error {
 	return nil
 }
 
-func (this *Lcd) Clear() error {
+func (this *LcdI2C) Clear() error {
 	err := this.writeByte(CMD_Clear_Display, 0)
 	return err
 }
 
-func (this *Lcd) Home() error {
+func (this *LcdI2C) Home() error {
 	err := this.writeByte(CMD_Return_Home, 0)
 	time.Sleep(3 * time.Millisecond)
 	return err
 }
 
-func (this *Lcd) getSize() (width, height int) {
+func (this *LcdI2C) getSize() (width, height int) {
 	switch this.lcdType {
 	case LCD_16x2:
 		return 16, 2
@@ -341,7 +341,7 @@ func (this *Lcd) getSize() (width, height int) {
 	}
 }
 
-func (this *Lcd) SetPosition(line, pos int) error {
+func (this *LcdI2C) SetPosition(line, pos int) error {
 	w, h := this.getSize()
 
 	if w != -1 && (pos < 0 || pos > w-1) {
@@ -358,7 +358,7 @@ func (this *Lcd) SetPosition(line, pos int) error {
 	return err
 }
 
-func (this *Lcd) Write(buf []byte) (int, error) {
+func (this *LcdI2C) Write(buf []byte) (int, error) {
 	for i, c := range buf {
 		err := this.writeByte(c, PIN_RS)
 
@@ -370,7 +370,7 @@ func (this *Lcd) Write(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
-func (this *Lcd) Command(cmd byte) error {
+func (this *LcdI2C) Command(cmd byte) error {
 	err := this.writeByte(cmd, 0)
 	return err
 }
