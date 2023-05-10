@@ -1,4 +1,7 @@
 flash:
 	tinygo flash -target=pico
 
-.PHONY: flash
+build:
+	tinygo build -target=pico
+
+.PHONY: flash,build

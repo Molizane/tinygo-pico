@@ -27,7 +27,7 @@ func main() {
 	}
 
 	// Turn on the backlight
-	err = lcd.BacklightOn()
+	err = lcd.SetBacklight(true)
 
 	if err != nil {
 		log.Fatal(err)
