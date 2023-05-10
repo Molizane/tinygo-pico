@@ -18,29 +18,43 @@ const (
 	CMD_CGRAM_Set            = 0x40
 	CMD_DDRAM_Set            = 0x80
 
-	// Options
-	OPT_Increment = 0x02 // CMD_Entry_Mode
-	OPT_Decrement = 0x00
+	// flags for display entry mode
+	FLG_Entry_Right           = 0x00
+	FLG_Entry_Left            = 0x02
+	FLG_Entry_Shift_Increment = 0x01
+	FLG_Entry_Shift_Decrement = 0x00
 
-	// OPT_Display_Shift  = 0x01 // CMD_Entry_Mode
-	OPT_Enable_Display = 0x04 // CMD_Display_Control
-	OPT_Enable_Cursor  = 0x02 // CMD_Display_Control
-	OPT_Enable_Blink   = 0x01 // CMD_Display_Control
-	OPT_Display_Shift  = 0x08 // CMD_Cursor_Display_Shift
-	OPT_Shift_Right    = 0x04 // CMD_Cursor_Display_Shift 0 = Left
-	OPT_8Bit_Mode      = 0x10
-	OPT_4Bit_Mode      = 0x00
-	OPT_2_Lines        = 0x08 // CMD_Function_Set 0 = 1 line
-	OPT_1_Lines        = 0x00
-	OPT_5x10_Dots      = 0x04 // CMD_Function_Set 0 = 5x7 dots
-	OPT_5x8_Dots       = 0x00
+	// flags for display on/off control
+	FLG_Blink_On    = 0x01
+	FLG_Blink_Off   = 0x00
+	FLG_Cursor_On   = 0x02
+	FLG_Cursor_Off  = 0x00
+	FLG_Display_On  = 0x04
+	FLG_Display_Off = 0x00
+
+	// flags for display/cursor shift
+	FLG_Display_Move = 0x08
+	FLG_Cursor_Move  = 0x00
+	FLG_Move_Right   = 0x04
+	FLG_Move_Left    = 0x00
+
+	// flags for function set
+	FLG_8Bit_Mode = 0x10
+	FLG_4Bit_Mode = 0x00
+	FLG_2_Lines   = 0x08
+	FLG_1_Line    = 0x00
+	FLG_5x10_Dots = 0x04
+	FLG_5x8_Dots  = 0x00
+
+	// flags for Back_Light control
+	FLG_Back_Light    byte = 0x08
+	FLG_No_Back_Light byte = 0x00
 )
 
 const (
-	PIN_BACKLIGHT byte = 0x08
-	PIN_EN        byte = 0x04 // Enable bit
-	PIN_RW        byte = 0x02 // Read/Write bit
-	PIN_RS        byte = 0x01 // Register select bit
+	PIN_EN         byte = 0x04 // Enable bit
+	PIN_RW         byte = 0x02 // Read/Write bit
+	PIN_RS         byte = 0x01 // Register select bit
 )
 
 type LcdType int
@@ -64,22 +78,22 @@ const (
 )
 
 type Lcd struct {
-	i2c       machine.I2C
-	addr      uint16
-	backlight bool
-	cursor    bool
-	lcdType   LcdType
+	i2c        machine.I2C
+	addr       uint16
+	BackLight bool
+	cursor     bool
+	lcdType    LcdType
 }
 
 func NewLcd(i2c machine.I2C, addr uint16, lcdType LcdType) (*Lcd, error) {
-	this := &Lcd{i2c: i2c, addr: addr, backlight: false, cursor: true, lcdType: lcdType}
+	this := &Lcd{i2c: i2c, addr: addr, BackLight: false, cursor: true, lcdType: lcdType}
 
 	initByteSeq := []byte{
 		0x03, 0x03, 0x03, // base initialization
 		0x02, // setting up 4-bit transfer mode
-		CMD_Function_Set | OPT_2_Lines | OPT_5x8_Dots | OPT_4Bit_Mode,
-		CMD_Display_Control | OPT_Enable_Display,
-		CMD_Entry_Mode | OPT_Increment,
+		CMD_Function_Set | FLG_2_Lines | FLG_5x8_Dots | FLG_4Bit_Mode,
+		CMD_Display_Control | FLG_Display_On,
+		CMD_Entry_Mode | FLG_Entry_Left,
 	}
 
 	for _, b := range initByteSeq {
@@ -127,8 +141,8 @@ func (this *Lcd) writeRawDataSeq(seq []rawData) error {
 }
 
 func (this *Lcd) writeDataWithStrobe(data byte) error {
-	if this.backlight {
-		data |= PIN_BACKLIGHT
+	if this.BackLight {
+		data |= FLG_Back_Light
 	}
 
 	seq := []rawData{
@@ -284,7 +298,7 @@ func (this *Lcd) TestWriteCGRam() error {
 }
 
 func (this *Lcd) BacklightOn() error {
-	this.backlight = true
+	this.BackLight = true
 	err := this.writeByte(0x00, 0)
 
 	if err != nil {
@@ -295,7 +309,7 @@ func (this *Lcd) BacklightOn() error {
 }
 
 func (this *Lcd) BacklightOff() error {
-	this.backlight = false
+	this.BackLight = false
 	err := this.writeByte(0x00, 0)
 
 	if err != nil {

@@ -8,8 +8,6 @@ import (
 )
 
 func main() {
-	// Create new connection to i2c-bus on 2 line with address 0x27.
-	// Use i2cdetect utility to find device address over the i2c-bus
 	i2c := machine.I2C0
 
 	err := i2c.Configure(machine.I2CConfig{
