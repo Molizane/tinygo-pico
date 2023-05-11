@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"machine"
 	"time"
@@ -58,10 +59,13 @@ func main() {
 	time.Sleep(time.Second * 5)
 
 	lcd.ClearDisplay()
-	lcd.Print([]byte("Cursor r 2, c 7"))
-	lcd.SetCursor(1, 7)
-	time.Sleep(time.Second * 10)
-	
+
+	for i := 0; i < 15; i++ {
+		lcd.Print([]byte(fmt.Sprintf("Cursor at 1, %d", i)))
+		lcd.SetCursor(1, 7)
+		time.Sleep(time.Second * 2)
+	}
+
 	lcd.ClearDisplay()
 	lcd.Print([]byte("Blink OFF"))
 	lcd.CursorBlink(false)
