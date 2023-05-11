@@ -107,22 +107,16 @@ func NewLcdI2C(i2c machine.I2C, addr uint16, lcdI2CType lcdI2CType) (*LcdI2C, er
 	}
 
 	for _, b := range initByteSeq {
-		err := this.writeByte(b, 0)
-
-		if err != nil {
+		if err := this.writeByte(b, 0); err != nil {
 			return nil, err
 		}
 	}
 
-	err := this.Clear()
-
-	if err != nil {
+	if err := this.Clear(); err != nil {
 		return nil, err
 	}
 
-	err = this.Home()
-
-	if err != nil {
+	if err := this.Home(); err != nil {
 		return nil, err
 	}
 
@@ -138,9 +132,7 @@ func (this *LcdI2C) writeRawDataSeq(seq []rawData) error {
 	r := make([]byte, 1)
 
 	for _, item := range seq {
-		err := this.i2c.Tx(this.addr, []byte{item.Data}, r)
-
-		if err != nil {
+		if err := this.i2c.Tx(this.addr, []byte{item.Data}, r); err != nil {
 			return err
 		}
 
@@ -163,9 +155,7 @@ func (this *LcdI2C) writeDataWithStrobe(data byte) error {
 }
 
 func (this *LcdI2C) writeByte(data byte, controlPins byte) error {
-	err := this.writeDataWithStrobe(data&0xF0 | controlPins)
-
-	if err != nil {
+	if err := this.writeDataWithStrobe(data&0xF0 | controlPins); err != nil {
 		return err
 	}
 
@@ -256,9 +246,7 @@ func (this *LcdI2C) ShowMessage(text string, options ShowOptions) error {
 
 	for {
 		if startLine != -1 && endLine != -1 {
-			err := this.SetPosition(i+startLine, 0)
-
-			if err != nil {
+			if err := this.SetPosition(i+startLine, 0); err != nil {
 				return err
 			}
 		}
@@ -266,9 +254,7 @@ func (this *LcdI2C) ShowMessage(text string, options ShowOptions) error {
 		line := lines[i]
 
 		for _, c := range line {
-			err := this.writeByte(byte(c), PIN_RS)
-
-			if err != nil {
+			if err := this.writeByte(byte(c), PIN_RS); err != nil {
 				return err
 			}
 		}
@@ -284,18 +270,14 @@ func (this *LcdI2C) ShowMessage(text string, options ShowOptions) error {
 }
 
 func (this *LcdI2C) TestWriteCGRam() error {
-	err := this.writeByte(CMD_CGRAM_Set, 0)
-
-	if err != nil {
+	if err := this.writeByte(CMD_CGRAM_Set, 0); err != nil {
 		return err
 	}
 
 	var a byte = 0x55
 
 	for i := 0; i < 80; i++ {
-		err := this.writeByte(a, PIN_RS)
-
-		if err != nil {
+		if err := this.writeByte(a, PIN_RS); err != nil {
 			return err
 		}
 
@@ -316,7 +298,9 @@ func (this *LcdI2C) BacklightOff() error {
 }
 
 func (this *LcdI2C) Clear() error {
-	return this.writeByte(CMD_Clear_Display, 0)
+	err := this.writeByte(CMD_Clear_Display, 0)
+	time.Sleep(3 * time.Millisecond)
+	return err
 }
 
 func (this *LcdI2C) Home() error {
@@ -337,26 +321,34 @@ func (this *LcdI2C) getSize() (width, height int) {
 }
 
 func (this *LcdI2C) SetPosition(line, pos int) error {
-	w, h := this.getSize()
+	cols, rows := this.getSize()
 
-	if w != -1 && (pos < 0 || pos > w-1) {
-		return fmt.Errorf("Cursor position %d "+"must be within the range [0..%d]", pos, w-1)
+	if cols != -1 && (pos < 0 || pos > cols-1) {
+		return fmt.Errorf("Cursor position %d must be within the range [0..%d]", pos, cols-1)
 	}
 
-	if h != -1 && (line < 0 || line > h-1) {
-		return fmt.Errorf("Cursor line %d "+"must be within the range [0..%d]", line, h-1)
+	if rows != -1 && (line < 0 || line > rows-1) {
+		return fmt.Errorf("Cursor line %d must be within the range [0..%d]", line, rows-1)
 	}
 
-	lineOffset := []byte{0x00, 0x40, 0x14, 0x54}
+	var lineOffset []byte
+
+	switch cols {
+	case 16:
+		lineOffset = []byte{0x00, 0x40}
+	case 20:
+		lineOffset = []byte{0x00, 0x40, 0x14, 0x54}
+	default:
+		return nil
+	}
+
 	var b byte = CMD_DDRAM_Set + lineOffset[line] + byte(pos)
 	return this.writeByte(b, 0)
 }
 
 func (this *LcdI2C) Write(buf []byte) (int, error) {
 	for i, c := range buf {
-		err := this.writeByte(c, PIN_RS)
-
-		if err != nil {
+		if err := this.writeByte(c, PIN_RS); err != nil {
 			return i, err
 		}
 	}
@@ -385,12 +377,12 @@ func (this *LcdI2C) CursorOff() error {
 }
 
 func (this *LcdI2C) BlinkOn() error {
-	this.displaycontrol |= FLG_Display_On
+	this.displaycontrol |= FLG_Blink_On
 	return this.command(CMD_Display_Control | this.displaycontrol)
 }
 
 func (this *LcdI2C) BlinkOff() error {
-	this.displaycontrol &= FLG_Display_On ^ 0xFF
+	this.displaycontrol &= FLG_Blink_On ^ 0xFF
 	return this.command(CMD_Display_Control | this.displaycontrol)
 }
 
@@ -427,28 +419,16 @@ func (this *LcdI2C) NoAutoscroll() error {
 	return this.command(CMD_Display_Entry | this.displaymode)
 }
 
-func (this *LcdI2C) SetCursor(col, row int) error {
-	row_offsets := []int{0x00, 0x40, 0x14, 0x54}
-	rows, _ := this.getSize()
-
-	if row > rows {
-		row = rows - 1 // we count rows starting w/0
-	}
-
-	return this.command(CMD_DDRAM_Set | byte(col+row_offsets[row]))
-}
-
 // Allows us to fill the first 8 CGRAM locations
 // with custom characters
 func (this *LcdI2C) CreateChar(location byte, charmap []byte) error {
 	location &= 0x7 // we only have 8 locations 0-7
-	err := this.command(CMD_CGRAM_Set | (location << 3))
 
-	if err != nil {
+	if err := this.command(CMD_CGRAM_Set | (location << 3)); err != nil {
 		return err
 	}
 
-	_, err = this.Write(charmap)
+	_, err := this.Write(charmap)
 	return err
 }
 
