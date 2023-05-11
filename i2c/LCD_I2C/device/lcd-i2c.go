@@ -9,38 +9,38 @@ import (
 
 const (
 	// Commands
-	DISPLAY_CLEAR   = 0x01
-	CURSOR_HOME     = 0x02
-	ENTRY_MODE   = 0x04
-	DISPLAY_ON_OFF = 0x08
-	CURSOR_DISPLAY_SHIFT    = 0x10
-	FUNCTION_MODE           = 0x20
-	CGRAM_SET       = 0x40
-	DDRAM_SET       = 0x80
+	DISPLAY_CLEAR        = 0x01
+	CURSOR_HOME          = 0x02
+	ENTRY_MODE           = 0x04
+	DISPLAY_ON_OFF       = 0x08
+	CURSOR_DISPLAY_SHIFT = 0x10
+	FUNCTION_MODE        = 0x20
+	CGRAM_SET            = 0x40
+	DDRAM_SET            = 0x80
 
 	// flags for display entry mode
-	CURSOR_INCREASE            = 0x02
+	CURSOR_INCREASE = 0x02
 	CURSOR_DECREASE = 0x00
-	DISPLAY_SHIFT = 0x01
+	DISPLAY_SHIFT   = 0x01
 
 	// flags for display on/off control
-	CURSOR_BLINK_OFF  = 0x00
-	CURSOR_BLINK_ON   = 0x01
-	CURSOR_OFF = 0x00
-	CURSOR_ON  = 0x02
-	DISPLAY_ON = 0x04
-	DISPLAY_OFF  = 0x00
+	CURSOR_BLINK_OFF = 0x00
+	CURSOR_BLINK_ON  = 0x01
+	CURSOR_OFF       = 0x00
+	CURSOR_ON        = 0x02
+	DISPLAY_ON       = 0x04
+	DISPLAY_OFF      = 0x00
 
 	// flags for display/cursor shift
-	CURSOR_MOVE_LEFT    = 0x00
-	CURSOR_MOVE_RIGHT   = 0x04
-	CURSOR_MOVE = 0x08
+	CURSOR_MOVE_LEFT  = 0x00
+	CURSOR_MOVE_RIGHT = 0x04
+	CURSOR_MOVE       = 0x08
 
 	// flags for function set
 	DATA_LENGTH_4BIT = 0x00
 	DATA_LENGTH_8BIT = 0x10
 
-	ONE_LINE  = 0x00
+	ONE_LINE = 0x00
 	TWO_LINE = 0x08
 
 	FONT_5X8  = 0x00
@@ -146,9 +146,9 @@ func (this *LcdI2C) writeDataWithStrobe(data byte) error {
 	data |= this.backlightval
 
 	seq := []rawData{
-		{data, 0},                               // send data
+		{data, 0},                           // send data
 		{data | En, 200 * time.Microsecond}, // set strobe
-		{data, 30 * time.Microsecond},           // reset strobe
+		{data, 30 * time.Microsecond},       // reset strobe
 	}
 
 	return this.writeRawDataSeq(seq)
@@ -226,7 +226,6 @@ func (this *LcdI2C) splitText(text string, options ShowOptions) []string {
 					lines = append(lines, strings.Repeat(" ", w))
 				}
 			}
-
 		}
 	} else if len(text) > 0 {
 		lines = append(lines, text)
