@@ -27,12 +27,13 @@ func main() {
 	if err := lcd.Configure(hd44780i2c.Config{
 		Width:       16, // required
 		Height:      2,  // required
-		CursorOn:    true,
-		CursorBlink: true,
+		CursorOn:    false,
+		CursorBlink: false,
 	}); err != nil {
 		log.Fatal(err)
 	}
 
+	lcd.ClearDisplay()
 	lcd.Print([]byte("Backlight ON"))
 	lcd.BacklightOn(true)
 	time.Sleep(time.Second * 5)
@@ -44,7 +45,7 @@ func main() {
 
 	lcd.BacklightOn(true)
 	lcd.ClearDisplay()
-	lcd.Print([]byte("Cursor ON"))
+	lcd.Print([]byte("Cursor ON "))
 	lcd.CursorOn(true)
 	time.Sleep(time.Second * 5)
 
@@ -54,20 +55,33 @@ func main() {
 	time.Sleep(time.Second * 5)
 
 	lcd.ClearDisplay()
-	lcd.Print([]byte("Blink ON"))
+	lcd.Print([]byte("Blink ON "))
 	lcd.CursorBlink(true)
 	time.Sleep(time.Second * 5)
 
 	lcd.ClearDisplay()
 
-	for i := 0; i < 15; i++ {
+	for i := uint8(0); i <= 15; i++ {
+		lcd.SetCursor(0, 0)
 		lcd.Print([]byte(fmt.Sprintf("Cursor at 1, %d", i)))
-		lcd.SetCursor(1, 7)
+		lcd.SetCursor(i, 1)
 		time.Sleep(time.Second * 2)
 	}
 
 	lcd.ClearDisplay()
 	lcd.Print([]byte("Blink OFF"))
+	lcd.CursorBlink(false)
+	time.Sleep(time.Second * 5)
+
+	lcd.ClearDisplay()
+	lcd.Print([]byte("Cursor/Blink ON"))
+	lcd.CursorOn(true)
+	lcd.CursorBlink(true)
+	time.Sleep(time.Second * 5)
+
+	lcd.ClearDisplay()
+	lcd.Print([]byte("Cursor/Blink OFF"))
+	lcd.CursorOn(false)
 	lcd.CursorBlink(false)
 	time.Sleep(time.Second * 5)
 
